@@ -23,7 +23,7 @@
    - 优先级：P0  
    - 模块：`src/utils/award-dicts.js` 
    - 复杂度：S  
-   - 内容：从计科本科明白书里扒奖项，填入 `award-dicts.js` 中
+   - 内容：从 [计科本科明白书](https://dq7ann1hev.feishu.cn/wiki/wikcnKQsRyhsF0SBbUtzqlAvEyd) 里扒奖项，填入 `award-dicts.js` 中
 
 ---
 

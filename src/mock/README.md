@@ -2,6 +2,9 @@
 
 This project is a mock API for the system, designed to simulate backend functionality for frontend testing. It provides endpoints for user authentication, application management, AI audits, reviews, and more, adhering to the specified API documentation.
 
+当前mock可登录账号存储位置在src\services\mockDb.js
+（账号有student1、student2、teacher、admin，密码都是“password”）
+
 ## Project Structure
 
 ```

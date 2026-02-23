@@ -14,3 +14,5 @@ dist-ssr/
 !.vscode/settings.json
 !.vscode/launch.json
 !.vscode/tasks.json
+
+z-buffer/
