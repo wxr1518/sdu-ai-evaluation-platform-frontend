@@ -424,7 +424,7 @@
 
 - 接口：`PUT /api/v1/applications/{application_id}`
 - 权限：仅学生（已登录，`role=student`）且仅本人数据
-- 状态限制：仅 `pending_ai` / `pending_review`
+- 状态限制：仅 `pending_review`
 
 请求 JSON：
 
@@ -650,245 +650,328 @@
 
 ---
 
-## 7.7 审核员审核模块（班委）
+### 7.6 人工审核（审核员/教师，Reviews）
 
-### 1. 获取待审核列表（按管辖班级）
+> 权限说明（统一接口，不同条件）：
+>
+> - 审核员：沿用 `student` 账号，通过激活审核员令牌后（`is_reviewer=true` 且绑定 `reviewer_token_id`）获得审核能力；数据范围受令牌 `class_ids` 限制；可审核状态为 `pending_review`。
+> - 教师（含管理员）：可访问全局数据（支持 `class_id` 过滤）；可审核状态为 `pending_teacher`（复核改判入口）。
 
-- **URL**: `/reviews/pending`
-- **Method**: `GET`
-- **权限**: `reviewer`
-- **Query**: `class_id=&category=&sub_type=&page=&size=&keyword=`
+#### 1) 获取待审核列表
 
----
+- 接口：`GET /api/v1/reviews/pending`
+- 权限：审核员 / 教师
+- Query：`class_id`、`category`、`sub_type`、`keyword`、`page`、`size`
 
-### 1.1 按分类获取待审核汇总
+说明：教师调用该接口时返回“待复核”集合（状态为 `pending_teacher`）。
 
-- **URL**: `/reviews/pending/category-summary`
-- **Method**: `GET`
-- **权限**: `reviewer`
-- **Query**: `class_id=&term=`
+返回 JSON（成功）：
 
-**成功响应 (200)**
 ```json
 {
-  "code": 0,
-  "message": "获取成功",
-  "data": {
-    "class_id": 301,
-    "term": "2025-2026-1",
-    "categories": [
-      {
-        "category": "physical_mental",
-        "sub_type": "basic",
-        "pending_count": 8,
-        "approved_count": 23,
-        "rejected_count": 5,
-        "category_score": 122.0
-      },
-      {
-        "category": "physical_mental",
-        "sub_type": "achivement",
-        "pending_count": 4,
-        "approved_count": 18,
-        "rejected_count": 2,
-        "category_score": 65.5
-      }
-    ],
-    "total_score": 187.5
-  }
+	"code": 0,
+	"message": "获取成功",
+	"data": {
+		"page": 1,
+		"size": 10,
+		"total": 1,
+		"list": [
+			{
+				"application_id": 12,
+				"student_id": 1002,
+				"student_name": "李四",
+				"class_id": 301,
+				"title": "数学建模竞赛",
+				"category": "physical_mental",
+				"sub_type": "basic",
+				"status": "pending_review",
+				"score": 4.0,
+				"created_at": "2026-02-26T10:00:00+00:00"
+			}
+		]
+	},
+	"request_id": "uuid"
 }
 ```
 
----
+教师视角示例（仅状态差异）：
 
-### 1.2 按分类获取待审核明细
-
-- **URL**: `/reviews/pending/by-category`
-- **Method**: `GET`
-- **权限**: `reviewer`
-- **Query**: `class_id=&category=&sub_type=&term=&page=&size=`
-
-**成功响应 (200)**
 ```json
 {
-  "code": 0,
-  "message": "获取成功",
-  "data": {
-    "class_id": 301,
-    "category": "physical_mental",
-    "term": "2025-2026-1",
-    "list": [
-      {
-        "application_id": 9012,
-        "student_name": "王五",
-        "status": "pending_review",
-        "score": 3.0,
-        "score_rule_version": "v2026.02"
-      }
-    ]
-  }
+	"code": 0,
+	"message": "获取成功",
+	"data": {
+		"page": 1,
+		"size": 10,
+		"total": 1,
+		"list": [
+			{
+				"application_id": 12,
+				"student_id": 1002,
+				"student_name": "李四",
+				"class_id": 301,
+				"title": "数学建模竞赛",
+				"category": "physical_mental",
+				"sub_type": "basic",
+				"status": "pending_teacher",
+				"score": 4.0,
+				"created_at": "2026-02-26T10:00:00+00:00"
+			}
+		]
+	},
+	"request_id": "uuid"
 }
 ```
 
----
+#### 2) 获取待审核分类汇总
 
-### 2. 获取审核详情
+- 接口：`GET /api/v1/reviews/pending/category-summary`
+- 权限：审核员 / 教师
+- Query：`class_id`、`term`
 
-- **URL**: `/reviews/{application_id}`
-- **Method**: `GET`
-- **权限**: `reviewer`
+返回 JSON（成功）：
 
----
-
-### 3. 审核决策（通过/驳回合并）
-
-- **URL**: `/reviews/{application_id}/decision`
-- **Method**: `POST`
-- **权限**: `reviewer`
-
-**请求参数**
 ```json
 {
-  "decision": "approved",
+	"code": 0,
+	"message": "获取成功",
+	"data": {
+		"class_id": 301,
+		"term": "2025-2026-1",
+		"categories": [
+			{
+				"category": "physical_mental",
+				"category_name": "physical_mental",
+				"pending_count": 8,
+				"approved_count": 23,
+				"rejected_count": 5
+			}
+		]
+	},
+	"request_id": "uuid"
 }
 ```
 
----
+教师复核通过示例：
 
-### 4. 获取我的审核记录
-
-- **URL**: `/reviews/history`
-- **Method**: `GET`
-- **权限**: `reviewer`
-- **Query**: `result=approved|rejected&from=&to=&page=&size=`
-
----
-
-### 5. 获取待审核数量（首页红点）
-
-- **URL**: `/reviews/pending-count`
-- **Method**: `GET`
-- **权限**: `reviewer`
-
----
-
-## 7.8. 教师管理申报模块
-
-### 1. 全局查询申报记录
-
-- **URL**: `/teacher/applications`
-- **Method**: `GET`
-- **权限**: `teacher`
-- **Query**: `grade=&class_id=&award_type=&status=&page=&size=&keyword=`
-
----
-
-### 2. 审核异常复核（改判）
-
-- **URL**: `/teacher/applications/{application_id}/recheck`
-- **Method**: `POST`
-- **权限**: `teacher`
-
-**请求参数**
 ```json
 {
-  "target_status": "rejected",
+	"code": 0,
+	"message": "审核完成",
+	"data": {
+		"application_id": 12,
+		"status": "approved",
+		"review_id": 10,
+		"reviewed_at": "2026-02-26T11:30:00+00:00"
+	},
+	"request_id": "uuid"
 }
 ```
 
----
+#### 3) 按分类获取待审核明细
 
-### 3. 批量归档
+- 接口：`GET /api/v1/reviews/pending/by-category`
+- 权限：审核员 / 教师
+- Query：`class_id`、`category`（必填）、`sub_type`、`term`、`page`、`size`
 
-- **URL**: `/teacher/applications/archive`
-- **Method**: `POST`
-- **权限**: `teacher`
+返回 JSON（成功）：
 
-**请求参数**
 ```json
 {
-  "application_ids": [9001, 9002, 9003]
+	"code": 0,
+	"message": "获取成功",
+	"data": {
+		"class_id": 301,
+		"category": "physical_mental",
+		"term": "2025-2026-1",
+		"page": 1,
+		"size": 10,
+		"total": 1,
+		"list": [
+			{
+				"application_id": 12,
+				"student_name": "李四",
+				"status": "pending_review",
+				"score": 4.0
+			}
+		]
+	},
+	"request_id": "uuid"
 }
 ```
 
----
+#### 4) 获取审核详情
 
-### 4. 统计看板
+- 接口：`GET /api/v1/reviews/{application_id}`
+- 权限：审核员 / 教师
 
-- **URL**: `/teacher/statistics`
-- **Method**: `GET`
-- **权限**: `teacher`
-- **Query**: `grade=&class_id=&from=&to=`
+返回 JSON（成功）：
 
-**成功响应 (200)**
 ```json
 {
-  "code": 0,
-  "message": "获取成功",
-  "data": {
-    "total": 1234,
-    "approved": 1010,
-    "rejected": 180,
-    "pending": 44,
-    "total_score": 6512.0,
-    "avg_score": 5.28,
-    "by_award_type": [
-      {"type": "discipline_competition", "count": 330, "score": 2010.0},
-      {"type": "volunteer", "count": 240, "score": 980.0}
-    ]
-  }
+	"code": 0,
+	"message": "获取成功",
+	"data": {
+		"id": 12, // id就是application_id
+		"student": {
+			"id": 1002,
+			"name": "李四",
+			"account": "20230002",
+			"class_id": 301
+		},
+		"category": "physical_mental",
+		"sub_type": "basic",
+		"award_uid": 111,
+		"title": "数学建模竞赛",
+		"description": "省赛二等奖",
+		"occurred_at": "2026-01-10",
+		"attachments": [{"file_id": "file_abc123"}],
+		"status": "pending_review",
+		"score": 4.0,
+		"comment": null,
+		"created_at": "2026-02-26T10:00:00+00:00",
+		"updated_at": "2026-02-26T10:00:00+00:00"
+	},
+	"request_id": "uuid"
 }
 ```
 
----
+#### 5) 提交审核决策
 
-## 7.9 教师查看年级班级统计数据模块
+- 接口：`POST /api/v1/reviews/{application_id}/decision`
+- 权限：审核员 / 教师
+- 请求 JSON：
 
-### 1. 查看某年级各班级整体情况
-
-- **URL**: `/counselor/grades/{grade}/classes/overview`
-- **Method**: `GET`
-- **权限**: `teacher/admin`
-- **Query**: `term=`
-
-**成功响应 (200)**
 ```json
 {
-  "code": 0,
-  "message": "获取成功",
-  "data": {
-    "grade": 2023,
-    "term": "2025-2026-1",
-    "classes": [
-      {
-        "class_id": 301,
-        "class_name": "23级1班",
-        "total_students": 42,
-        "submitted_students": 35,
-        "submission_rate": 0.8333,
-        "pending_review": 12,
-        "approved": 60,
-        "rejected": 14,
-        "total_score": 187.5,
-        "avg_score": 5.36
-      }
-    ]
-  }
+	"decision": "approved",
+	"comment": "材料齐全",
+	"reason_code": null,
+	"reason_text": null
 }
 ```
 
----
+说明：当 `decision=rejected` 时，`reason_code` 与 `reason_text` 必填。
 
-### 2. 查看某年级下单个班级明细
+状态变化说明：
 
-- **URL**: `/counselor/grades/{grade}/classes/{class_id}`
-- **Method**: `GET`
-- **权限**: `teacher/admin`
-- **Query**: `term=&page=&size=`
+- 审核员：`pending_review` -> `pending_teacher` / `rejected`
+- 教师：`pending_teacher` -> `approved` / `rejected`
 
----
+返回 JSON（成功）：
 
-## 7.10 导出-归档-公示模块
+```json
+{
+	"code": 0,
+	"message": "审核完成",
+	"data": {
+		"application_id": 12,
+		"status": "pending_teacher",
+		"review_id": 9,
+		"reviewed_at": "2026-02-26T10:30:00+00:00"
+	},
+	"request_id": "uuid"
+}
+```
+
+#### 5.1) 批量提交审核决策
+
+- 接口：`POST /api/v1/reviews/batch-decision`
+- 权限：审核员 / 教师
+- 请求 JSON：
+
+```json
+{
+	"application_ids": [12, 13, 14],
+	"decision": "approved",
+	"comment": "材料齐全",
+	"reason_code": null,
+	"reason_text": null
+}
+```
+
+说明：
+
+- `application_ids` 必填，最多 200 条；重复 ID 会自动去重。
+- 批量提交为原子事务：任意一条校验失败（无权限/状态不允许/资源不存在）则整批失败回滚。
+
+返回 JSON（成功）：
+
+```json
+{
+	"code": 0,
+	"message": "批量审核完成",
+	"data": {
+		"total": 3,
+		"success_count": 3,
+		"list": [
+			{
+				"application_id": 12,
+				"status": "pending_teacher",
+				"review_id": 21,
+				"reviewed_at": "2026-02-26T10:40:00+00:00"
+			}
+		]
+	},
+	"request_id": "uuid"
+}
+```
+
+#### 6) 获取我的审核历史
+
+- 接口：`GET /api/v1/reviews/history`
+- 权限：审核员 / 教师
+- Query：`class_id`、`result`、`from`、`to`、`page`、`size`
+
+返回 JSON（成功）：
+
+```json
+{
+	"code": 0,
+	"message": "获取成功",
+	"data": {
+		"page": 1,
+		"size": 10,
+		"total": 1,
+		"list": [
+			{
+				"application_id": 12,
+				"student_name": "李四",
+				"class_id": 301,
+				"title": "数学建模竞赛",
+				"result": "approved",
+				"comment": "材料齐全",
+				"reason_code": null,
+				"reason_text": null,
+				"reviewed_at": "2026-02-26T10:30:00+00:00"
+			}
+		]
+	},
+	"request_id": "uuid"
+}
+```
+
+#### 7) 获取待审核数量
+
+- 接口：`GET /api/v1/reviews/pending-count`
+- 权限：审核员 / 教师
+- Query：`class_id`
+
+返回 JSON（成功）：
+
+```json
+{
+	"code": 0,
+	"message": "获取成功",
+	"data": {
+		"pending_count": 8
+	},
+	"request_id": "uuid"
+}
+```
+
+
+## 7.7 导出-归档-公示模块
 
 ### 1. 创建导出归档记录
 
@@ -976,7 +1059,7 @@
 ---
 
 
-## 7.11. 邮件通知模块
+## 7.8. 邮件通知模块
 
 ### 1. 发送驳回通知（内部调用）
 
@@ -1003,7 +1086,7 @@
 
 ---
 
-## 7.12. 申诉模块
+## 7.9. 申诉模块
 
 ### 1. 提交申诉
 
